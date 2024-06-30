@@ -10,10 +10,6 @@ router.route("/createTask").post(isAuth,scheamValidation.request_validation(reqV
 router.get("/getAllTasks",isAuth,getAllTask);
 router.get("/getTaskById/:taskId",getTaskById);
 router.get("/getTaskAnalytics", isAuth,getTaskAnalysis);
-// router.get("/getTrendingQuizzes",isAuth,getTrendingQuiz);
 router.delete("/deleteTaskById/:taskId",isAuth,deleteTask);
-// router.get("/getQuizDetails",isAuth, getQuizDetails);
-// router.post("/assessment", assessment);
-// router.post("/getAssessmentDetails",isAuth,getAssessmentData);
 router.route("/updateTask").put(isAuth,scheamValidation.request_validation(reqValidation.updateTask),updateTask);
  module.exports=router;

@@ -1,5 +1,4 @@
 const Task = require("../model/taskSchema");
-const Assessment = require("../model/assessmentSchema");
 const mongoose = require('mongoose')
 const moment = require('moment-timezone');
 const createTask = async (req, res) => {
@@ -179,40 +178,114 @@ const getTaskAnalysis = async(req,res)=>{
           ]
         }
       },
-        {
-            $facet: {
-                byCurrentStatus: [
-                    {
-                        $group: {
-                            _id: "$currentStatus",
-                            count: { $sum: 1 } // Count documents in each currentStatus group
-                        }
-                    },
-                    {
-                        $project: {
-                            _id: 0,
-                            currentStatus: "$_id",
-                            count: 1
-                        }
-                    }
-                ],
-                byPriority: [
-                    {
-                        $group: {
-                            _id: "$priority",
-                            count: { $sum: 1 } // Count documents in each priority group
-                        }
-                    },
-                    {
-                        $project: {
-                            _id: 0,
-                            priority: "$_id",
-                            count: 1
-                        }
-                    }
-                ]
+      {
+        $facet: {
+          byCurrentStatus: [
+            {
+              $group: {
+                _id: "$currentStatus",
+                count: { $sum: 1 }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                statuses: {
+                  $push: {
+                    k: "$_id",
+                    v: "$count"
+                  }
+                }
+              }
+            },
+            {
+              $replaceRoot: {
+                newRoot: { $arrayToObject: "$statuses" }
+              }
+            },
+            {
+              $project: {
+                _id: 0,
+                BACKLOG: { $ifNull: ["$BACKLOG", 0] },
+                TODO: { $ifNull: ["$TODO", 0] },
+                INPROGRESS: { $ifNull: ["$INPROGRESS", 0] },
+                DONE: { $ifNull: ["$DONE", 0] }
+              }
             }
+          ],
+          byPriority: [
+            {
+              $group: {
+                _id: "$priority",
+                count: { $sum: 1 }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                priorities: {
+                  $push: {
+                    k: "$_id",
+                    v: "$count"
+                  }
+                }
+              }
+            },
+            {
+              $replaceRoot: {
+                newRoot: { $arrayToObject: "$priorities" }
+              }
+            },
+            {
+              $project: {
+                _id: 0,
+                "HIGH PRIORITY": { $ifNull: ["$HIGH PRIORITY", 0] },
+                "LOW PRIORITY": { $ifNull: ["$LOW PRIORITY", 0] },
+                "MODERATE PRIORITY": { $ifNull: ["$MODERATE PRIORITY", 0] }
+              }
+            }
+          ],
+          dueCount: [
+            {
+              $group: {
+                _id: null,
+                count: {
+                  $sum: {
+                    $cond: {
+                      if: { $ne: ["$dueDate", null] },
+                      then: 1,
+                      else: 0
+                    }
+                  }
+                }
+              }
+            }
+          ]
         }
+      },
+      {
+        $project: {
+          byCurrentStatus: { $arrayElemAt: ["$byCurrentStatus", 0] },
+          byPriority: { $arrayElemAt: ["$byPriority", 0] },
+          dueCount: { $arrayElemAt: ["$dueCount.count", 0] }
+        }
+      },
+      {
+        $project: {
+          byCurrentStatus: {
+            BACKLOG: { $ifNull: ["$byCurrentStatus.BACKLOG", 0] },
+            TODO: { $ifNull: ["$byCurrentStatus.TODO", 0] },
+            INPROGRESS: { $ifNull: ["$byCurrentStatus.INPROGRESS", 0] },
+            DONE: { $ifNull: ["$byCurrentStatus.DONE", 0] }
+          },
+          byPriority: {
+            "HIGH PRIORITY": { $ifNull: ["$byPriority.HIGH PRIORITY", 0] },
+            "LOW PRIORITY": { $ifNull: ["$byPriority.LOW PRIORITY", 0] },
+            "MODERATE PRIORITY": { $ifNull: ["$byPriority.MODERATE PRIORITY", 0] }
+          },
+          dueCount: 1
+        }
+      }
     ]
     const tasks = await Task.aggregate(pipeline)
     res.status(201).json({
